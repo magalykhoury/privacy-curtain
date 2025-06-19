@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Blur Toggle Extension",
+  "name": "Privacy Curtain",
   "version": "1.0",
-  "description": "Click the icon to toggle chat blur on WhatsApp, Teams, Gmail, and Outlook.",
+  "description": "Privacy-focused browser extension that provides selective content blurring across multiple platforms.",
   "permissions": ["storage", "scripting", "activeTab"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://teams.microsoft.com/*",
     "https://mail.google.com/*",
-    "https://outlook.live.com/*"
+    "https://outlook.live.com/*",
+    "https://outlook.office.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -27,10 +28,12 @@
   ],
   "action": {
     "default_icon": {
-
+      "16": "assets/icon-eye.png",
+      "32": "assets/icon-eye.png", 
+      "48": "assets/icon-eye.png",
       "128": "assets/icon-eye.png"
     },
-    "default_title": "Blur Toggle",
+    "default_title": "Privacy Curtain",
     "default_popup": "index.html"
   }
 }

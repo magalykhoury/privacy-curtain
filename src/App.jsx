@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./popup.css";
 
 const toggleLabels = {
+    universalBlur: "Universal Blur (Any Site)",
     blurImage: "Blur Profile Images",
     blurName: "Blur Names",
     blurMessage: "Blur Messages",
