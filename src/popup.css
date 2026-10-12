@@ -1,7 +1,9 @@
 ﻿:root { font-family: "Segoe UI", system-ui, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
 * { box-sizing: border-box; }
-body { margin: 0; width: 392px; max-width: 100vw; }
-.popup { --surface: #fff; --soft: #f3f5f4; --text: #1d2925; --muted: #55665f; --border: #dce3df; --accent: #126747; --on-accent: #fff; --error: #9b232b; background: var(--surface); color: var(--text); padding: 20px; min-height: 400px; max-height: 600px; overflow-y: auto; }
+/* Chrome computes the popup viewport from its contents: never cap its root width with vw. */
+html, body { margin: 0; padding: 0; width: 392px; min-width: 392px; height: 600px; overflow: hidden; }
+#root { display: block; width: 100%; }
+.popup { --surface: #fff; --soft: #f3f5f4; --text: #1d2925; --muted: #55665f; --border: #dce3df; --accent: #126747; --on-accent: #fff; --error: #9b232b; background: var(--surface); color: var(--text); width: 100%; min-width: 0; height: 600px; max-height: min(600px, 100vh); padding: 20px; overflow-x: hidden; overflow-y: auto; }
 .popup[data-theme="dark"] { --surface: #19221e; --soft: #242f29; --text: #eff4f1; --muted: #b6c5bc; --border: #44564b; --accent: #80d9ae; --on-accent: #102b1e; --error: #ffadb2; color-scheme: dark; }
 @media (prefers-color-scheme: dark) { .popup[data-theme="system"] { --surface: #19221e; --soft: #242f29; --text: #eff4f1; --muted: #b6c5bc; --border: #44564b; --accent: #80d9ae; --on-accent: #102b1e; --error: #ffadb2; color-scheme: dark; } }
 .popup[data-theme="light"] { color-scheme: light; }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Privacy Curtain",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "minimum_chrome_version": "111",
   "description": "Privacy-focused browser extension that provides selective content blurring across multiple platforms.",
   "permissions": ["storage", "scripting", "activeTab"],

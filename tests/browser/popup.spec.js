@@ -2,6 +2,12 @@ import { test, expect } from '@playwright/test';
 import { mockChrome } from './mock-chrome.js';
 
 const failures = new WeakMap();
+const dimensions = page => page.evaluate(() => Object.fromEntries(['html', 'body', '#root', 'main.popup'].map(selector => {
+  const element = document.querySelector(selector);
+  const style = getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return [selector, { width: rect.width, height: rect.height, cssWidth: style.width, minWidth: style.minWidth, maxWidth: style.maxWidth, display: style.display, visibility: style.visibility, overflowX: style.overflowX, overflowY: style.overflowY, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth, clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }];
+})));
 async function open(page, options = {}) {
   const errors = [];
   const external = [];
@@ -188,7 +194,8 @@ test('keyboard switches, focus visibility, reduced motion and compact width', as
   await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
   expect(await name.evaluate(el => getComputedStyle(el, '::after').transitionDuration)).toBe('0s');
   await page.setViewportSize({ width: 320, height: 800 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  // A temporary narrow viewport must not cap the extension's preferred intrinsic width.
+  expect(await page.locator('html').evaluate(el => el.getBoundingClientRect().width)).toBe(392);
 });
 
 test('light and dark popup renders stay legible with restrained motion', async ({ page }) => {
@@ -200,4 +207,52 @@ test('light and dark popup renders stay legible with restrained motion', async (
   await expect(page.locator('main')).toHaveAttribute('data-theme', 'dark');
   await page.screenshot({ path: 'test-results/popup-dark.png', fullPage: true });
   expect(await page.locator('main').evaluate(el => getComputedStyle(el).color)).toBe('rgb(239, 244, 241)');
+});
+
+for (const width of [25, 120, 320, 392]) {
+  test(`popup keeps its intrinsic width from an initial ${width}px viewport`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 600 });
+    const stylesheets = [];
+    page.on('response', response => { if (response.request().resourceType() === 'stylesheet') stylesheets.push({ url: response.url(), status: response.status() }); });
+    await open(page);
+    const measured = await dimensions(page);
+    await test.info().attach('popup-dimensions.json', { body: JSON.stringify({ viewportWidth: width, stylesheets, measured }, null, 2), contentType: 'application/json' });
+    expect(stylesheets).toHaveLength(1);
+    expect(stylesheets[0].status).toBe(200);
+    expect(new URL(stylesheets[0].url).pathname).toMatch(/^\/assets\/.*\.css$/);
+    for (const selector of ['html', 'body', '#root', 'main.popup']) {
+      expect(measured[selector].width).toBe(392);
+      expect(measured[selector].display).toBe('block');
+      expect(measured[selector].visibility).toBe('visible');
+    }
+    expect(measured.body.maxWidth).toBe('none');
+    expect(measured['main.popup'].height).toBeLessThanOrEqual(600);
+    expect(measured['main.popup'].scrollWidth).toBeLessThanOrEqual(measured['main.popup'].clientWidth);
+  });
+}
+
+test('popup has one vertical scroll container and none when its content is short', async ({ page }) => {
+  await page.setViewportSize({ width: 392, height: 600 });
+  await open(page);
+  const measured = await dimensions(page);
+  expect(measured.html.overflowY).toBe('hidden');
+  expect(measured.body.overflowY).toBe('hidden');
+  expect(measured['#root'].overflowY).toBe('visible');
+  expect(measured['main.popup'].overflowY).toBe('auto');
+  expect(measured['main.popup'].scrollHeight).toBeGreaterThan(measured['main.popup'].clientHeight);
+  await page.evaluate(() => { document.querySelector('main.popup').replaceChildren(document.createElement('p')); });
+  const short = await dimensions(page);
+  expect(short['main.popup'].scrollHeight).toBe(short['main.popup'].clientHeight);
+});
+
+test('popup scrolling fits a smaller height constraint without clipping the final controls', async ({ page }) => {
+  await page.setViewportSize({ width: 407, height: 510 });
+  await open(page);
+  const measured = await dimensions(page);
+  expect(measured['main.popup'].height).toBe(510);
+  expect(measured['main.popup'].scrollWidth).toBe(measured['main.popup'].clientWidth);
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  const footer = await page.locator('footer').boundingBox();
+  expect(footer.y).toBeGreaterThanOrEqual(0);
+  expect(footer.y + footer.height).toBeLessThanOrEqual(510);
 });

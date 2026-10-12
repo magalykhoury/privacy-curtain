@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { platforms, settingsKeys, normalize, detectPlatform, loadPreferences, savePreferences } from './preferences.js';
 import eye from '../public/assets/icon-eye.png';
 import './popup.css';
@@ -99,7 +99,7 @@ export default function App() {
   }
 
   return <main className="popup" data-theme={prefs.pc_theme} aria-busy={busy}>
-    <header className="brand"><img src={eye} alt="" width="36" height="36" /><div><h1>Privacy Curtain</h1><p>A little more privacy.</p></div><span className="version">2.0.1</span></header>
+    <header className="brand"><img src={eye} alt="" width="36" height="36" /><div><h1>Privacy Curtain</h1><p>A little more privacy.</p></div><span className="version">2.0.2</span></header>
     <section className="current-site" aria-label="Current website">
       <div><span className="eyebrow">CURRENT WEBSITE</span><strong>{current ? platforms[current].label : 'Unsupported website'}</strong><span className="site-detail">{current ? (!prefs[`pc_${current}_enabled`] ? 'Protection paused' : prefs[platforms[current].allKey] || prefs[platforms[current].insideAllKey] || platforms[current].options.some(({ key }) => prefs[key]) ? 'Blur categories enabled' : 'Choose categories to protect') : 'Choose a platform below to edit its preferences.'}</span></div>
       {current && <Switch label="Current website protection" checked={prefs[`pc_${current}_enabled`]} disabled={disabled} onChange={value => save({ [`pc_${current}_enabled`]: value }, current)} />}

@@ -12,6 +12,7 @@ Read `README.md` for development, testing and safe unpacked loading. Read `docs/
 - Do not read or log message text, email bodies, contact names, cookies or credentials. No runtime telemetry or network dependencies.
 - Keep exact supported hosts aligned across shared.js and the manifest; `npm run check:build` validates them.
 - `npm run build` writes builds/production-v2. `npm run build:dev` writes separately named builds/development-v2. Preserve existing dist and dist.zip.
+- Set the popup's intrinsic width on html/body with a nonzero minimum; do not cap it with vw because Chrome auto-sizes its viewport from the contents. Keep a single vertical scroll container below Chrome's 600 px limit. Popup-native testing uses only disposable workspace data; see docs/POPUP_LAYOUT_FIX.md.
 - The old public/assets/popup.css has a pre-existing user edit: do not overwrite it. It is intentionally not packaged. The historical bun.lock is preserved; use npm and package-lock.json.
 - `npm test` covers core preferences, migration and routing. `npm run test:browser` uses synthetic fixtures and mocked Chrome APIs in fresh headless Chrome contexts. Build production first.
 - Neither synthetic DOM tests nor a build verify compatibility with a live authenticated application. Manual release gates are documented; no installed Chrome profile/extension is to be modified automatically.

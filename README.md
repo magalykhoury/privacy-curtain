@@ -4,7 +4,7 @@ Privacy Curtain is a local Chrome extension for selective visual blurring on Wha
 
 **Release status: development candidate.** Automated checks use synthetic DOM fixtures and mocked Chrome APIs. Current authenticated website layouts have not been manually verified. A successful build or a green test suite does not prove coverage on your live account.
 
-Current development version: **2.0.1**. WhatsApp's outside and inside masters are independent. See [the scope fix and count-only diagnostic guide](docs/WHATSAPP_SCOPE_FIX.md).
+Current development version: **2.0.2**. The popup now has an explicit 392 px intrinsic width, avoiding collapse during Chrome's auto-sizing. See [popup verification and exact reload instructions](docs/POPUP_LAYOUT_FIX.md). WhatsApp's outside and inside masters remain independent; see [the scope fix and count-only diagnostic guide](docs/WHATSAPP_SCOPE_FIX.md).
 
 ## Safely load the development extension
 
@@ -49,7 +49,7 @@ Gmail, Outlook and Teams have their own panels. Their selectors are tested again
 
 Platform protection pauses/resumes without overwriting individual choices. Each master overrides only its own scope while enabled and restores that scope's previous choices when switched off. Other platforms keep their platform-wide master. Hover reveal and blur intensity apply to all platforms. Intensity ranges from 3 to 16 px. Blur is a visual filter, not encryption or a guarantee that every text size is unreadable; select an adequate intensity for your display. Notifications, tooltips and content outside the configured selectors are outside coverage.
 
-The popup uses the existing eye branding, local assets, keyboard-operable labeled switches, visible focus, system/light/dark themes and reduced-motion support. Its width is 392 px (or the available viewport); its height is capped at 600 px with scrolling for additional controls.
+The popup uses the existing eye branding, local assets, keyboard-operable labeled switches, visible focus, system/light/dark themes and reduced-motion support. Its intrinsic content width is 392 px, independent of a small initial viewport. The main panel fits the available popup height up to 600 px, with one vertical scroll container for additional controls and no horizontal or duplicate outer scrollbars. Chrome may reserve a small native width allowance around the content.
 
 ## Development and testing
 
@@ -73,6 +73,8 @@ Playwright tests use locally installed Google Chrome with fresh temporary contex
 Unit tests cover selector generation, exact host detection, preference normalization, additive migration, patch-only persistence, platform-specific routing, multiple matching tabs and errors. Browser tests cover computed CSS, hover, each WhatsApp toggle, group chats, dynamic/recycled rows, conversation switching, navigation, refresh, style recovery, loading races, negative UI controls, the other platform fixtures, popup interaction, themes and simulated multi-tab storage events.
 
 These tests do **not** exercise a real installed MV3 extension, real Chrome storage sync across devices or authenticated live website layouts. The manual checks above cover the remaining acceptance work.
+
+The optional `npm run test:popup-native` command separately verifies native MV3 popup sizing and local CSS loading in project-local test Chromium with disposable test data. It does not use the user's Chrome profile. See [the popup test setup](docs/POPUP_LAYOUT_FIX.md) for the one-time browser installation and the scope of this check.
 
 ## Architecture and permissions
 
