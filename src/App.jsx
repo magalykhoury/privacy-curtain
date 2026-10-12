@@ -1,319 +1,103 @@
-import { useEffect, useState } from "react";
-import "./popup.css";
+﻿import { useEffect, useRef, useState } from 'react';
+import { platforms, settingsKeys, normalize, detectPlatform, loadPreferences, savePreferences } from './preferences.js';
+import eye from '../public/assets/icon-eye.png';
+import './popup.css';
 
-const toggleLabels = {
-    universalBlur: "Universal Blur (Any Site)",
-    blurImage: "Blur Profile Images",
-    blurName: "Blur Names",
-    blurMessage: "Blur Messages",
-    blurAll: "Blur Everything",
-    blurChatLastImage: "Blur Last Image",
-    blurChatAllMessages: "Blur All Messages",
-    blurChatName: "Blur Name",
-    blurChatImage: "Blur Profile Picture",
-    // Gmail-specific
-    gmailBlurSender: "Blur Sender",
-    gmailBlurSender2: "Blur Sender 2",
-    gmailBlurSubject: "Blur Subject",
-    gmailBlurSnippet: "Blur Snippet",
-    gmailBlurAll: "Blur Everything in Gmail",
-    // Outlook-specific
-    outlookBlurAll: "Blur Everything in Outlook",
-    // Teams-specific
-    teams_blurImage: "Blur Profile Images",
-    teams_blurName: "Blur Names",
-    teams_blurMessage: "Blur Messages",
-    teams_blurAll: "Blur Everything",
-    teams_blurChatLastImage: "Blur Last Image",
-    teams_blurChatAllMessages: "Blur All Messages",
-    teams_blurChatName: "Blur Name",
-    teams_blurChatImage: "Blur Profile Picture"
-};
+function Switch({ label, checked, disabled, onChange, description }) {
+  return <label className="control-row">
+    <span className="control-copy"><span>{label}</span>{description && <small>{description}</small>}</span>
+    <input className="switch" type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={event => onChange(event.target.checked)} />
+  </label>;
+}
 
-const whatsappToggles = [
-    "blurImage",
-    "blurName",
-    "blurMessage",
-    "blurAll",
-    "blurChatLastImage",
-    "blurChatAllMessages",
-    "blurChatName",
-    "blurChatImage"
-];
+export default function App() {
+  const [prefs, setPrefs] = useState(normalize());
+  const [platform, setPlatform] = useState('whatsapp');
+  const [current, setCurrent] = useState(null);
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const saving = useRef(false);
 
-const gmailToggles = [
-    "gmailBlurAll",
-    "outlookBlurAll"
-];
-
-const teamsToggles = [
-    "teams_blurImage",
-    "teams_blurName",
-    "teams_blurMessage",
-    "teams_blurAll",
-    "teams_blurChatLastImage",
-    "teams_blurChatAllMessages",
-    "teams_blurChatName",
-    "teams_blurChatImage"
-];
-
-// Platform detection helper
-const detectCurrentPlatform = async () => {
-    try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const activeTab = tabs[0];
-        if (!activeTab?.url) return null;
-
-        const hostname = new URL(activeTab.url).hostname.toLowerCase();
-
-        if (hostname.includes('web.whatsapp.com') || hostname.includes('whatsapp.com')) {
-            return 'whatsapp';
-        } else if (hostname.includes('mail.google.com') || hostname.includes('gmail.com')) {
-            return 'gmail';
-        } else if (hostname.includes('outlook.live.com') || hostname.includes('outlook.office.com') || hostname.includes('outlook.office365.com')) {
-            return 'outlook';
-        } else if (hostname.includes('teams.microsoft.com') || hostname.includes('teams.live.com')) {
-            return 'teams';
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error detecting platform:', error);
-        return null;
+  useEffect(() => {
+    if (!globalThis.chrome?.storage?.sync) { setError('Open Privacy Curtain from the extension toolbar to use saved settings.'); return; }
+    const api = globalThis.chrome;
+    let alive = true;
+    let sequence = 0;
+    async function read(migrate = false) {
+      const ticket = ++sequence;
+      try {
+        const data = migrate ? await loadPreferences(api) : normalize(await api.storage.sync.get(settingsKeys));
+        if (alive && ticket === sequence) { setPrefs(data); setReady(true); setError(''); }
+      } catch {
+        if (alive && ticket === sequence) { setReady(false); setError('Preferences could not be loaded. Retry before changing protection.'); }
+      }
     }
-};
-
-const App = () => {
-    const [platform, setPlatform] = useState("whatsapp");
-    const [toggles, setToggles] = useState({});
-    const [showSettings, setShowSettings] = useState(false);
-    const [currentPagePlatform, setCurrentPagePlatform] = useState(null);
-
-    useEffect(() => {
-        chrome.storage.sync.get(null, (prefs) => setToggles(prefs || {}));
-        detectCurrentPlatform().then(detectedPlatform => {
-            setCurrentPagePlatform(detectedPlatform);
-            if (detectedPlatform) setPlatform(detectedPlatform);
-        });
-    }, []);
-
-    const sendMessageToContentScript = (prefs, targetPlatform = null) => {
-        const hostMatch = (url, platform) => {
-            if (!url) return false;
-            const hostname = new URL(url).hostname.toLowerCase();
-            if (platform === 'whatsapp') return hostname.includes('whatsapp.com');
-            if (platform === 'gmail') return hostname.includes('gmail.com') || hostname.includes('mail.google.com');
-            if (platform === 'outlook') return hostname.includes('outlook.');
-            if (platform === 'teams') return hostname.includes('teams.');
-            return false;
-        };
-
-        chrome.tabs.query({}, (tabs) => {
-            tabs.forEach(tab => {
-                if (tab.id && tab.url && hostMatch(tab.url, targetPlatform)) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        action: "updateBlur",
-                        prefs,
-                        platform: targetPlatform
-                    }, () => {
-                        if (chrome.runtime.lastError) {
-                            chrome.scripting.executeScript({
-                                target: { tabId: tab.id },
-                                files: ["content.js"]
-                            }).then(() => {
-                                setTimeout(() => {
-                                    chrome.tabs.sendMessage(tab.id, {
-                                        action: "updateBlur",
-                                        prefs,
-                                        platform: targetPlatform
-                                    });
-                                }, 100);
-                            });
-                        }
-                    });
-                }
-            });
-        });
+    const changed = (changes, area) => {
+      if (area === 'sync' && settingsKeys.some(key => key in changes)) read();
     };
+    api.storage.onChanged.addListener(changed);
+    read(true);
+    api.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+      if (!alive) return;
+      const detected = detectPlatform(tabs[0]?.url);
+      setCurrent(detected);
+      if (detected) setPlatform(detected);
+    }).catch(() => { if (alive) setCurrent(null); });
+    return () => { alive = false; api.storage.onChanged.removeListener(changed); };
+  }, [attempt]);
 
-    const handleToggle = (name) => {
-        const updated = { ...toggles, [name]: !toggles[name] };
-        setToggles(updated);
-        chrome.storage.sync.set(updated, () => {
-            sendMessageToContentScript(updated, currentPagePlatform || platform);
-        });
-    };
+  async function save(patch, target = platform) {
+    if (saving.current || !ready) return;
+    saving.current = true;
+    setBusy(true);
+    setError('');
+    setFeedback('Saving…');
+    try {
+      const connected = await savePreferences(globalThis.chrome, target, patch);
+      setFeedback(connected ? 'Preferences saved' : 'Saved. Refresh any page that has not updated.');
+    } catch {
+      setError('Preferences were not saved. Your previous settings are still in use.');
+      setFeedback('');
+    } finally { saving.current = false; setBusy(false); }
+  }
 
-    const toggleAllForPlatform = (platformKey, value) => {
-        let keys = [];
-        let affectedPlatforms = [platformKey];
+  const config = platforms[platform];
+  const enabled = prefs[`pc_${platform}_enabled`];
+  const all = prefs[config.allKey];
+  const selectedCount = config.options.filter(({ key }) => prefs[key]).length;
+  const sections = [...new Set(config.options.map(({ section }) => section))];
+  const disabled = !ready || busy;
+  const status = !ready ? 'Loading preferences' : !enabled ? 'Protection paused' : all ? 'All categories selected' : selectedCount ? `${selectedCount} categories selected` : 'No categories selected';
 
-        if (platformKey === "whatsapp") keys = whatsappToggles;
-        else if (platformKey === "gmail") {
-            keys = gmailToggles;
-            affectedPlatforms = ["gmail", "outlook"]; // 👈 Send to both
-        }
-        else if (platformKey === "outlook") keys = outlookToggles;
-        else if (platformKey === "teams") keys = teamsToggles;
+  function renderOptions(section) {
+    return config.options.filter(option => option.section === section).map(({ key, label }) => <Switch key={key} label={label} checked={all || prefs[key]} disabled={disabled || all} onChange={value => save({ [key]: value })} />);
+  }
 
-        const updated = { ...toggles };
-        keys.forEach(key => {
-            updated[key] = value;
-        });
-
-        setToggles(updated);
-        chrome.storage.sync.set(updated, () => {
-            // 👇 Send blur updates to all affected platforms
-            affectedPlatforms.forEach(p => sendMessageToContentScript(updated, p));
-        });
-    };
-
-
-    const isAllEnabled = (platformKey) => {
-        let keys = [];
-        if (platformKey === "whatsapp") keys = whatsappToggles;
-        else if (platformKey === "gmail") keys = gmailToggles;
-        else if (platformKey === "outlook") keys = outlookToggles;
-        else if (platformKey === "teams") keys = teamsToggles;
-        return keys.every(key => toggles[key]);
-    };
-
-    const renderButton = (name) => (
-        <div className="option-row" key={name}>
-            <span className="option-label">{toggleLabels[name] || name}</span>
-            <button
-                type="button"
-                className={`toggle-button ${toggles[name] ? "enabled" : ""}`}
-                onClick={() => handleToggle(name)}
-            >
-                <div className="toggle-slider"></div>
-            </button>
-        </div>
-    );
-
-    const renderMasterToggle = (platformKey, label) => {
-        const enabled = isAllEnabled(platformKey);
-        return (
-            <div className="option-row" key={platformKey}>
-                <span className="option-label">{label}</span>
-                <button
-                    type="button"
-                    className={`toggle-button ${enabled ? "enabled" : ""}`}
-                    onClick={() => toggleAllForPlatform(platformKey, !enabled)}
-                >
-                    <div className="toggle-slider"></div>
-                </button>
-            </div>
-        );
-    };
-
-    const renderSettingsPanel = () => (
-        <div>
-            <h3>Master Blur Settings</h3>
-            {currentPagePlatform && (
-                <div style={{
-                    padding: "8px",
-                    marginBottom: "10px",
-                    backgroundColor: "#e3f2fd",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                    color: "#1976d2"
-                }}>
-                    Current page: {currentPagePlatform.charAt(0).toUpperCase() + currentPagePlatform.slice(1)}
-                </div>
-            )}
-            {renderMasterToggle("whatsapp", "WhatsApp Blur")}
-            {renderMasterToggle("gmail", "All Gmail & Outlook Blur")}
-            {renderMasterToggle("teams", "Teams Blur")}
-        </div>
-    );
-
-    const getPlatformButtonClass = (buttonPlatform) => {
-        let baseClass = `save-button icon-button`;
-
-        if (showSettings) {
-            return `${baseClass} ${showSettings ? "active-tab" : ""}`;
-        }
-
-        // Highlight the button if it matches current platform or current page
-        const isActive = platform === buttonPlatform && !showSettings;
-        const isCurrentPage = currentPagePlatform === buttonPlatform ||
-            (buttonPlatform === 'gmail' && currentPagePlatform === 'outlook');
-
-        if (isActive) {
-            return `${baseClass} active-tab`;
-        } else if (isCurrentPage) {
-            return `${baseClass} current-page`;
-        }
-
-        return baseClass;
-    };
-
-    return (
-        <div>
-            <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "15px" }}>
-                <button
-                    className={`save-button icon-button ${showSettings ? "active-tab" : ""}`}
-                    onClick={() => setShowSettings(true)}
-                    title="Settings"
-                >
-                    <i className="bi bi-gear"></i>
-                </button>
-                <button
-                    className={getPlatformButtonClass("whatsapp")}
-                    onClick={() => { setPlatform("whatsapp"); setShowSettings(false); }}
-                    title="WhatsApp"
-                >
-                    <i className="bi bi-whatsapp"></i>
-                </button>
-                <button
-                    className={getPlatformButtonClass("gmail")}
-                    onClick={() => { setPlatform("gmail"); setShowSettings(false); }}
-                    title="Gmail & Outlook"
-                >
-                    <i className="bi bi-envelope-fill"></i>
-                </button>
-                <button
-                    className={getPlatformButtonClass("teams")}
-                    onClick={() => { setPlatform("teams"); setShowSettings(false); }}
-                    title="Microsoft Teams"
-                >
-                    <i className="bi bi-microsoft-teams"></i>
-                </button>
-            </div>
-
-            {!showSettings ? (
-                platform === "gmail" ? (
-                    <>
-                        <h3>Gmail & Outlook Blur Settings</h3>
-                        <form id="blurForm">
-                            <div className="fieldset-container">
-                                <fieldset>
-                                    {gmailToggles.map(renderButton)}
-                                </fieldset>
-                            </div>
-                        </form>
-                    </>
-                ) : (
-                    <>
-                        <h3>{platform === "teams" ? "Microsoft Teams Blur Settings" : "WhatsApp Blur Settings"}</h3>
-                        <form id="blurForm">
-                            <div className="fieldset-container">
-                                <fieldset>
-                                    <legend>Outside Chat Options</legend>
-                                    {(platform === "teams" ? teamsToggles.slice(0, 4) : whatsappToggles.slice(0, 4)).map(renderButton)}
-                                </fieldset>
-                                <fieldset>
-                                    <legend>Inside Chat Options</legend>
-                                    {(platform === "teams" ? teamsToggles.slice(4) : whatsappToggles.slice(4)).map(renderButton)}
-                                </fieldset>
-                            </div>
-                        </form>
-                    </>
-                )
-            ) : (
-                renderSettingsPanel()
-            )}
-        </div>
-    )};
-export default App;
+  return <main className="popup" data-theme={prefs.pc_theme} aria-busy={busy}>
+    <header className="brand"><img src={eye} alt="" width="36" height="36" /><div><h1>Privacy Curtain</h1><p>A little more privacy.</p></div><span className="version">2.0</span></header>
+    <section className="current-site" aria-label="Current website">
+      <div><span className="eyebrow">CURRENT WEBSITE</span><strong>{current ? platforms[current].label : 'Unsupported website'}</strong><span className="site-detail">{current ? (!prefs[`pc_${current}_enabled`] ? 'Protection paused' : prefs[platforms[current].allKey] || platforms[current].options.some(({ key }) => prefs[key]) ? 'Blur categories enabled' : 'Choose categories to protect') : 'Choose a platform below to edit its preferences.'}</span></div>
+      {current && <Switch label="Current website protection" checked={prefs[`pc_${current}_enabled`]} disabled={disabled} onChange={value => save({ [`pc_${current}_enabled`]: value }, current)} />}
+    </section>
+    <nav className="platform-picker" aria-label="Privacy platforms">
+      {Object.entries(platforms).map(([key, { label }]) => <button type="button" key={key} aria-pressed={platform === key} onClick={() => { setPlatform(key); setFeedback(''); }} disabled={busy}>{label === 'Microsoft Teams' ? 'Teams' : label}</button>)}
+    </nav>
+    <section className="platform-panel" aria-label={`${config.label} privacy controls`}>
+      <div className="panel-heading"><div><h2>{config.label}</h2><p className="protection-state" data-enabled={enabled && (all || selectedCount > 0)}>{status}</p></div><Switch label={`${config.label} protection`} checked={enabled} disabled={disabled} onChange={value => save({ [`pc_${platform}_enabled`]: value })} /></div>
+      <Switch label="Blur everything" description="All supported categories on this platform" checked={all} disabled={disabled} onChange={value => save({ [config.allKey]: value })} />
+      {all && <p className="hint">Turn off Blur everything to adjust individual categories.</p>}
+      {sections.map(section => section === 'Additional controls' ? <details className="additional" key={section}><summary>Additional controls</summary>{renderOptions(section)}</details> : <fieldset key={section}><legend>{section}</legend>{renderOptions(section)}</fieldset>)}
+    </section>
+    <details className="general-settings"><summary>Reveal & appearance</summary>
+      <Switch label="Hover to reveal" description="Reveal only the element under your pointer" checked={prefs.pc_hoverReveal} disabled={disabled} onChange={value => save({ pc_hoverReveal: value })} />
+      <label className="select-row"><span>Blur intensity</span><select aria-label="Blur intensity" value={prefs.pc_blurIntensity} disabled={disabled} onChange={event => save({ pc_blurIntensity: Number(event.target.value) })}>{[...new Set([3, 5, 8, 12, 16, prefs.pc_blurIntensity])].sort((a, b) => a - b).map(value => <option key={value} value={value}>{value} px{value === 5 ? ' · Default' : ''}</option>)}</select></label>
+      <label className="select-row"><span>Theme</span><select aria-label="Theme" value={prefs.pc_theme} disabled={disabled} onChange={event => save({ pc_theme: event.target.value })}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    </details>
+    <div className="save-feedback" role="status" aria-live="polite">{feedback || (ready ? 'Preferences sync across your open tabs.' : 'Loading saved preferences…')}</div>
+    {error && <div className="error" role="alert"><p>{error}</p>{!ready && <button type="button" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Retry</button>}</div>}
+    <footer>Visual protection only. Website layouts can change; verify coverage before relying on blur.</footer>
+  </main>;
+}

@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Privacy Curtain",
-  "version": "1.0",
+  "version": "2.0.0",
+  "minimum_chrome_version": "111",
   "description": "Privacy-focused browser extension that provides selective content blurring across multiple platforms.",
   "permissions": ["storage", "scripting", "activeTab"],
   "host_permissions": [
@@ -9,7 +10,11 @@
     "https://teams.microsoft.com/*",
     "https://mail.google.com/*",
     "https://outlook.live.com/*",
-    "https://outlook.office.com/*"
+    "https://outlook.office.com/*",
+    "https://outlook.office365.com/*",
+    "https://teams.live.com/*",
+    "https://teams.cloud.microsoft/*",
+    "https://outlook.cloud.microsoft/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,19 +26,28 @@
         "https://teams.microsoft.com/*",
         "https://mail.google.com/*",
         "https://outlook.live.com/*",
-        "https://outlook.office.com/*"
+        "https://outlook.office.com/*",
+        "https://outlook.office365.com/*",
+        "https://teams.live.com/*",
+        "https://teams.cloud.microsoft/*",
+        "https://outlook.cloud.microsoft/*"
       ],
-      "js": ["content.js"]
+      "js": ["shared.js", "content.js"],
+      "run_at": "document_start"
     }
   ],
   "action": {
     "default_icon": {
-      "16": "assets/icon-eye.png",
-      "32": "assets/icon-eye.png", 
-      "48": "assets/icon-eye.png",
-      "128": "assets/icon-eye.png"
+      "16": "assets/16.png",
+      "32": "assets/32.png",
+      "48": "assets/48.png",
+      "128": "assets/128.png"
     },
     "default_title": "Privacy Curtain",
     "default_popup": "index.html"
+  },
+  "icons": { "16": "assets/16.png", "32": "assets/32.png", "48": "assets/48.png", "128": "assets/128.png" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'"
   }
 }

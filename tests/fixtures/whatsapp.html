@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Synthetic WhatsApp structure</title>
+<style>
+body { font-family: sans-serif; margin: 16px; } img, svg { width: 30px; height: 30px; }
+[role="row"] { display: flex; gap: 24px; padding: 12px; } .message-in, .message-out { margin: 12px; }
+button, input, [contenteditable] { margin: 12px; } #main header { display: flex; gap: 24px; }
+</style></head><body>
+<button id="outside-button">New conversation</button><input id="search" placeholder="Search">
+<div id="pane-side"><div role="grid">
+  <div role="row" data-testid="list-item-person">
+    <img id="avatar" alt="Synthetic avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
+    <span id="name" data-testid="cell-frame-title"><span title="Fixture Person" dir="auto">Fixture Person</span></span>
+    <span id="preview" data-testid="cell-frame-secondary"><span dir="auto">Synthetic preview <img class="emoji" id="preview-emoji" alt="emoji"></span></span>
+    <button id="row-menu"><span title="Menu" dir="auto">Menu</span><img id="row-control-image" alt="Control icon"></button>
+  </div>
+  <div role="row" data-testid="list-item-group">
+    <svg id="group-avatar" data-icon="default-group"><circle cx="15" cy="15" r="14"></circle></svg>
+    <span id="group-name" data-testid="cell-frame-title" title="Fixture Group" dir="auto">Fixture Group</span>
+    <span id="group-preview" data-testid="cell-frame-secondary"><span dir="auto">Synthetic group preview</span></span>
+  </div>
+  <div role="listitem">
+    <img id="fallback-avatar" alt="Fallback avatar">
+    <span id="fallback-name" title="Fixture Fallback" dir="auto">Fixture Fallback</span>
+    <div class="_ak8k"><span id="fallback-preview" dir="auto">Legacy preview structure</span></div>
+    <span class="_1wjpf" id="username">Legacy username</span>
+  </div>
+</div></div>
+<div id="main">
+  <header>
+    <img id="header-avatar" alt="Header avatar">
+    <span id="header-name" data-testid="conversation-info-header-chat-title"><span title="Fixture Conversation" dir="auto">Fixture Conversation</span></span>
+    <button id="header-menu"><span title="Menu" dir="auto">Menu</span><img id="header-control-image" alt="Control icon"></button>
+  </header>
+  <div id="message-list">
+    <div class="message-in"><span class="selectable-text" id="incoming">Synthetic incoming message</span><img id="incoming-media" alt="Incoming media"></div>
+    <div class="message-out"><span class="selectable-text" id="outgoing">Synthetic outgoing message</span><img id="outgoing-media" alt="Outgoing media"><img class="emoji" id="message-emoji" alt="emoji"></div>
+    <div data-testid="msg-container"><span data-testid="msg-text" id="new-message">Synthetic message variant</span><video id="video"></video><canvas id="canvas"></canvas><img id="latest-media" alt="Latest media"><span class="selectable-text" id="latest-text">Latest synthetic text</span></div>
+  </div>
+  <footer><div id="composer" contenteditable="true" role="textbox">Synthetic unsent text</div><button id="send">Send</button></footer>
+</div>
+<aside><img id="unrelated-image" alt="Unrelated icon"><span id="unrelated-name" title="Settings" dir="auto">Settings</span></aside>
+</body></html>
