@@ -2,9 +2,11 @@
 
 Privacy Curtain is a local Chrome extension for selective visual blurring on WhatsApp Web, Gmail, Outlook and Microsoft Teams. Preferences use `chrome.storage.sync`; the extension does not collect messages, contact names, email subjects or email bodies. Sync may synchronize preferences through Chrome when browser sync is enabled.
 
-**Release status: development candidate.** Automated checks use synthetic DOM fixtures and mocked Chrome APIs. Current authenticated website layouts have not been manually verified. A successful build or a green test suite does not prove coverage on your live account.
+**Release status: development candidate.** The user reports WhatsApp blurring works correctly in 2.0.2. Automation uses synthetic DOM fixtures and mocked Chrome APIs; it has not inspected the user's authenticated session. Gmail, Outlook and Teams still require live acceptance checks. A successful build or a green test suite does not prove coverage on every live account.
 
-Current development version: **2.0.2**. The popup now has an explicit 392 px intrinsic width, avoiding collapse during Chrome's auto-sizing. See [popup verification and exact reload instructions](docs/POPUP_LAYOUT_FIX.md). WhatsApp's outside and inside masters remain independent; see [the scope fix and count-only diagnostic guide](docs/WHATSAPP_SCOPE_FIX.md).
+Current development version: **2.0.3**. This UI-only update restores the original blue-and-white appearance, icon buttons, rounded switches and two-column chat settings at the original 640 px width. The working 2.0.2 engine and storage mappings are unchanged. See [visual restoration, verification and exact reload instructions](docs/BLUE_UI_RESTORATION.md). WhatsApp's outside and inside masters remain independent; see [the scope fix and count-only diagnostic guide](docs/WHATSAPP_SCOPE_FIX.md).
+
+The repository destination is **[magalykhoury/privacy-curtain](https://github.com/magalykhoury/privacy-curtain)**. `origin` and the default push destination point only there. The original repository is retained locally as `legacy-readonly`, with its push URL disabled. Work belongs to the new repository; never push to the original. Historical branches retain the original local main, the published GitHub main and the Gmail branch without merging old functionality into the modern engine.
 
 ## Safely load the development extension
 
@@ -20,7 +22,7 @@ The ready-to-test build is:
 6. Refresh the website after the initial load. Choose categories in the popup; fresh installations keep category toggles off. Verify each category before relying on the extension.
 7. After code changes, run `npm run build:dev`, then reload **Privacy Curtain Dev** in this separate profile and refresh the test tabs. Leave the installed v1.0 extension in your normal profile unchanged.
 
-The extension has not been automatically installed, reloaded, published or uploaded. Do not load the production build into your usual profile during testing.
+The extension has not been automatically installed, reloaded or submitted to the Chrome Web Store. Do not load the production build into your usual profile during testing.
 
 ## WhatsApp manual acceptance checklist
 
@@ -49,7 +51,7 @@ Gmail, Outlook and Teams have their own panels. Their selectors are tested again
 
 Platform protection pauses/resumes without overwriting individual choices. Each master overrides only its own scope while enabled and restores that scope's previous choices when switched off. Other platforms keep their platform-wide master. Hover reveal and blur intensity apply to all platforms. Intensity ranges from 3 to 16 px. Blur is a visual filter, not encryption or a guarantee that every text size is unreadable; select an adequate intensity for your display. Notifications, tooltips and content outside the configured selectors are outside coverage.
 
-The popup uses the existing eye branding, local assets, keyboard-operable labeled switches, visible focus, system/light/dark themes and reduced-motion support. Its intrinsic content width is 392 px, independent of a small initial viewport. The main panel fits the available popup height up to 600 px, with one vertical scroll container for additional controls and no horizontal or duplicate outer scrollbars. Chrome may reserve a small native width allowance around the content.
+The popup restores the original Arial typography, `#3e50a1` blue accents, white surfaces, 54 × 28 px switches with white circular handles, 36 px platform icon buttons and rounded bordered fieldsets. WhatsApp and Teams have Outside Chat Options on the left and Inside Chat Options on the right; Gmail and Outlook each have a single Email Options fieldset with independent settings. The existing eye branding, keyboard controls, visible focus, system/light/dark themes, additional controls and diagnostics remain available. Its intrinsic content width is 640 px, independent of a small initial viewport. The main panel fits the available popup height up to 600 px, with one vertical scroll container when needed and no horizontal or duplicate outer scrollbars. Chrome may reserve a small native width allowance around the content.
 
 ## Development and testing
 

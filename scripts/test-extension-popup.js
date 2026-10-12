@@ -65,19 +65,19 @@ try {
   assert.ok(report.cssHref.startsWith('./assets/') && report.cssHref.endsWith('.css'));
   assert.ok(report.viewport.height > 0 && report.viewport.height <= 600);
   for (const element of Object.values(report.elements)) {
-    assert.equal(element.width, 392);
+    assert.equal(element.width, 640);
     assert.equal(element.display, 'block');
     assert.equal(element.visibility, 'visible');
   }
   const main = report.elements['main.popup'];
   const allowance = report.viewport.width - report.elements.body.width;
-  assert.ok(report.viewport.width >= 392 && report.viewport.width <= 424, 'Native width fits the content with at most 32px browser chrome allowance');
+  assert.ok(report.viewport.width >= 640 && report.viewport.width <= 672, 'Native width fits the content with at most 32px browser chrome allowance');
   assert.ok(main.height <= report.viewport.height, 'Scroll container must fit the actual available popup height');
   assert.ok(main.scrollWidth <= main.clientWidth, 'No horizontal overflow');
   assert.equal(report.elements.html.overflowY, 'hidden');
   assert.equal(report.elements.body.overflowY, 'hidden');
   assert.equal(main.overflowY, 'auto');
-  console.log(`Native MV3 popup: ${report.viewport.width} x ${report.viewport.height}; local CSS parsed; all roots 392px; native width allowance ${allowance}px; main height ${main.height}px fits viewport; one vertical scroll container.`);
+  console.log(`Native MV3 popup: ${report.viewport.width} x ${report.viewport.height}; local CSS parsed; all roots 640px; native width allowance ${allowance}px; main height ${main.height}px fits viewport; one vertical scroll container.`);
 } finally {
   if (context) await context.close();
   // Remove only the unique temporary directory created above, after checking its resolved location.

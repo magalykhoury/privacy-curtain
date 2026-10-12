@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
       for (const file of ['shared.js', 'content.js', 'background.js', 'assets/16.png', 'assets/32.png', 'assets/48.png', 'assets/128.png']) {
         this.emitFile({ type: 'asset', fileName: file, source: readFileSync(new URL(`./public/${file}`, import.meta.url)) });
       }
+      this.emitFile({ type: 'asset', fileName: 'assets/bootstrap-icons-LICENSE.txt', source: readFileSync(new URL('./src/icons/LICENSE', import.meta.url)) });
     },
   }],
   build: {

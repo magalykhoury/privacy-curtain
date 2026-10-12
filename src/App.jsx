@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { platforms, settingsKeys, normalize, detectPlatform, loadPreferences, savePreferences } from './preferences.js';
 import eye from '../public/assets/icon-eye.png';
+import whatsappIcon from './icons/whatsapp.svg';
+import gmailIcon from './icons/envelope-fill.svg';
+import outlookIcon from './icons/envelope-at-fill.svg';
+import teamsIcon from './icons/microsoft-teams.svg';
 import './popup.css';
+
+const platformIcons = { whatsapp: whatsappIcon, gmail: gmailIcon, outlook: outlookIcon, teams: teamsIcon };
 
 function Switch({ label, checked, disabled, onChange, description }) {
   return <label className="control-row">
@@ -73,6 +79,7 @@ export default function App() {
   const insideAll = Boolean(config.insideAllKey && prefs[config.insideAllKey]);
   const selectedCount = config.options.filter(({ key }) => prefs[key]).length;
   const sections = [...new Set(config.options.map(({ section }) => section))];
+  const chatLayout = platform === 'whatsapp' || platform === 'teams';
   const disabled = !ready || busy;
   const status = !ready ? 'Loading preferences' : !enabled ? 'Protection paused' : all || insideAll ? (platform === 'whatsapp' ? `${all ? 'Outside' : ''}${all && insideAll ? ' & ' : ''}${insideAll ? 'Inside' : ''} master enabled` : 'All categories selected') : selectedCount ? `${selectedCount} categories selected` : 'No categories selected';
 
@@ -99,19 +106,28 @@ export default function App() {
   }
 
   return <main className="popup" data-theme={prefs.pc_theme} aria-busy={busy}>
-    <header className="brand"><img src={eye} alt="" width="36" height="36" /><div><h1>Privacy Curtain</h1><p>A little more privacy.</p></div><span className="version">2.0.2</span></header>
+    <header className="brand"><img src={eye} alt="" width="36" height="36" /><div><h1>Privacy Curtain</h1><p>A little more privacy.</p></div><span className="version">2.0.3</span></header>
     <section className="current-site" aria-label="Current website">
       <div><span className="eyebrow">CURRENT WEBSITE</span><strong>{current ? platforms[current].label : 'Unsupported website'}</strong><span className="site-detail">{current ? (!prefs[`pc_${current}_enabled`] ? 'Protection paused' : prefs[platforms[current].allKey] || prefs[platforms[current].insideAllKey] || platforms[current].options.some(({ key }) => prefs[key]) ? 'Blur categories enabled' : 'Choose categories to protect') : 'Choose a platform below to edit its preferences.'}</span></div>
       {current && <Switch label="Current website protection" checked={prefs[`pc_${current}_enabled`]} disabled={disabled} onChange={value => save({ [`pc_${current}_enabled`]: value }, current)} />}
     </section>
     <nav className="platform-picker" aria-label="Privacy platforms">
-      {Object.entries(platforms).map(([key, { label }]) => <button type="button" key={key} aria-pressed={platform === key} onClick={() => { setPlatform(key); setFeedback(''); }} disabled={busy}>{label === 'Microsoft Teams' ? 'Teams' : label}</button>)}
+      {Object.entries(platforms).map(([key, { label }]) => <button className="icon-button" type="button" key={key} aria-label={label === 'Microsoft Teams' ? 'Teams' : label} title={label} aria-pressed={platform === key} onClick={() => { setPlatform(key); setFeedback(''); }} disabled={busy}><img src={platformIcons[key]} alt="" width="20" height="20" /></button>)}
     </nav>
     <section className="platform-panel" aria-label={`${config.label} privacy controls`}>
-      <div className="panel-heading"><div><h2>{config.label}</h2><p className="protection-state" data-enabled={enabled && (all || selectedCount > 0)}>{status}</p></div><Switch label={`${config.label} protection`} checked={enabled} disabled={disabled} onChange={value => save({ [`pc_${platform}_enabled`]: value })} /></div>
-      <Switch label={platform === 'whatsapp' ? 'Outside Blur everything' : 'Blur everything'} description={platform === 'whatsapp' ? 'Conversation list only: pictures, names and previews' : 'All supported categories on this platform'} checked={all} disabled={disabled} onChange={value => save({ [config.allKey]: value })} />
-      {all && <p className="hint">{platform === 'whatsapp' ? 'Inside controls remain independent.' : 'Turn off Blur everything to adjust individual categories.'}</p>}
-      {sections.map(section => section === 'Additional controls' ? <details className="additional" key={section}><summary>Additional controls</summary>{renderOptions(section)}</details> : <fieldset key={section}><legend>{section}</legend>{config.insideAllKey && section === 'Opened conversation' && <Switch label="Inside Blur everything" description="Opened conversation only" checked={insideAll} disabled={disabled} onChange={value => save({ [config.insideAllKey]: value })} />}{renderOptions(section)}</fieldset>)}
+      <div className="panel-heading"><div><h2>{config.label} Blur Settings</h2><p className="protection-state" data-enabled={enabled && (all || selectedCount > 0)}>{status}</p></div><Switch label={`${config.label} protection`} checked={enabled} disabled={disabled} onChange={value => save({ [`pc_${platform}_enabled`]: value })} /></div>
+      <div className={`fieldset-container${chatLayout ? ' chat-columns' : ''}`}>
+        {sections.filter(section => section !== 'Additional controls').map(section => <fieldset key={section}>
+          <legend>{chatLayout ? (section === 'Opened conversation' ? 'Inside Chat Options' : 'Outside Chat Options') : 'Email Options'}</legend>
+          {renderOptions(section)}
+          {section !== 'Opened conversation' && <>
+            <Switch label={platform === 'whatsapp' ? 'Outside Blur everything' : 'Blur everything'} description={platform === 'whatsapp' ? 'Conversation list only: pictures, names and previews' : 'All supported categories on this platform'} checked={all} disabled={disabled} onChange={value => save({ [config.allKey]: value })} />
+            {all && <p className="hint">{platform === 'whatsapp' ? 'Inside controls remain independent.' : 'Turn off Blur everything to adjust individual categories.'}</p>}
+          </>}
+          {config.insideAllKey && section === 'Opened conversation' && <Switch label="Inside Blur everything" description="Opened conversation only" checked={insideAll} disabled={disabled} onChange={value => save({ [config.insideAllKey]: value })} />}
+        </fieldset>)}
+      </div>
+      {sections.includes('Additional controls') && <details className="additional"><summary>Additional controls</summary>{renderOptions('Additional controls')}</details>}
     </section>
     <details className="general-settings"><summary>Reveal & appearance</summary>
       <Switch label="Hover to reveal" description="Reveal only the element under your pointer" checked={prefs.pc_hoverReveal} disabled={disabled} onChange={value => save({ pc_hoverReveal: value })} />

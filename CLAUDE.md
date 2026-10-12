@@ -2,6 +2,9 @@
 
 Read `README.md` for development, testing and safe unpacked loading. Read `docs/MODERNIZATION.md` for the investigation, storage migration, architecture, evidence and remaining release gates.
 
+- All commits and pushes belong to `magalykhoury/privacy-curtain`. `origin` targets that repository; `legacy-readonly` has a disabled push URL. Never push to `mini-dev-tools/privacy-curtain`.
+- Preserve the restored original blue design (see docs/BLUE_UI_RESTORATION.md); do not introduce another visual redesign or restore historical JavaScript/selectors.
+
 - React 19 popup, Vite 6 build, JavaScript/JSX and local CSS; Chrome Manifest V3.
 - `public/shared.js` centralizes platform detection, category selectors, defaults, validation and additive migration.
 - WhatsApp `blurAll` is outside-only. `pc_whatsapp_insideAll` is the independent inside master, default false. Every WhatsApp option has an explicit scope; never let one master activate both. Count-only diagnostics are on demand in the popup; see docs/WHATSAPP_SCOPE_FIX.md.

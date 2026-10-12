@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockChrome } from './mock-chrome.js';
+import { platforms } from '../../src/preferences.js';
 
 const failures = new WeakMap();
 const dimensions = page => page.evaluate(() => Object.fromEntries(['html', 'body', '#root', 'main.popup'].map(selector => {
@@ -52,7 +53,7 @@ test('switches every panel and persists individual controls across popup reopen'
   await expect(page.getByRole('switch', { name: 'Contact and group names', exact: true })).toBeChecked();
   for (const label of ['Gmail', 'Outlook', 'Teams', 'WhatsApp']) {
     await page.getByRole('button', { name: label, exact: true }).click();
-    await expect(page.getByRole('heading', { name: label === 'Teams' ? 'Microsoft Teams' : label, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `${label === 'Teams' ? 'Microsoft Teams' : label} Blur Settings`, exact: true })).toBeVisible();
   }
   await page.getByRole('switch', { name: 'Conversation previews', exact: true }).check();
   await expect(page.getByRole('status')).toHaveText('Preferences saved');
@@ -195,12 +196,12 @@ test('keyboard switches, focus visibility, reduced motion and compact width', as
   expect(await name.evaluate(el => getComputedStyle(el, '::after').transitionDuration)).toBe('0s');
   await page.setViewportSize({ width: 320, height: 800 });
   // A temporary narrow viewport must not cap the extension's preferred intrinsic width.
-  expect(await page.locator('html').evaluate(el => el.getBoundingClientRect().width)).toBe(392);
+  expect(await page.locator('html').evaluate(el => el.getBoundingClientRect().width)).toBe(640);
 });
 
 test('light and dark popup renders stay legible with restrained motion', async ({ page }) => {
   await open(page, { prefs: { blurName: true, blurImage: true, blurMessage: true, pc_theme: 'light' } });
-  await page.setViewportSize({ width: 392, height: 600 });
+  await page.setViewportSize({ width: 640, height: 600 });
   expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().height)).toBeLessThanOrEqual(600);
   await page.screenshot({ path: 'test-results/popup-light.png', fullPage: true });
   await page.evaluate(() => __setPrefs({ pc_theme: 'dark' }));
@@ -209,7 +210,7 @@ test('light and dark popup renders stay legible with restrained motion', async (
   expect(await page.locator('main').evaluate(el => getComputedStyle(el).color)).toBe('rgb(239, 244, 241)');
 });
 
-for (const width of [25, 120, 320, 392]) {
+for (const width of [25, 120, 320, 640]) {
   test(`popup keeps its intrinsic width from an initial ${width}px viewport`, async ({ page }) => {
     await page.setViewportSize({ width, height: 600 });
     const stylesheets = [];
@@ -221,7 +222,7 @@ for (const width of [25, 120, 320, 392]) {
     expect(stylesheets[0].status).toBe(200);
     expect(new URL(stylesheets[0].url).pathname).toMatch(/^\/assets\/.*\.css$/);
     for (const selector of ['html', 'body', '#root', 'main.popup']) {
-      expect(measured[selector].width).toBe(392);
+      expect(measured[selector].width).toBe(640);
       expect(measured[selector].display).toBe('block');
       expect(measured[selector].visibility).toBe('visible');
     }
@@ -232,8 +233,10 @@ for (const width of [25, 120, 320, 392]) {
 }
 
 test('popup has one vertical scroll container and none when its content is short', async ({ page }) => {
-  await page.setViewportSize({ width: 392, height: 600 });
+  await page.setViewportSize({ width: 640, height: 600 });
   await open(page);
+  await page.getByText('Reveal & appearance', { exact: true }).click();
+  await page.getByText('WhatsApp coverage diagnostics', { exact: true }).click();
   const measured = await dimensions(page);
   expect(measured.html.overflowY).toBe('hidden');
   expect(measured.body.overflowY).toBe('hidden');
@@ -245,8 +248,73 @@ test('popup has one vertical scroll container and none when its content is short
   expect(short['main.popup'].scrollHeight).toBe(short['main.popup'].clientHeight);
 });
 
+test('original blue styling, white switch handles and four local platform icons render', async ({ page }) => {
+  await open(page, { prefs: { pc_theme: 'light', blurName: true } });
+  await expect(page.locator('main')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(page.getByRole('heading', { level: 2 })).toHaveCSS('color', 'rgb(62, 80, 161)');
+  const toggle = page.getByRole('switch', { name: 'Contact and group names', exact: true });
+  await expect(toggle).toHaveCSS('background-color', 'rgb(62, 80, 161)');
+  await expect(toggle).toHaveCSS('width', '54px');
+  await expect(toggle).toHaveCSS('height', '28px');
+  expect(await toggle.evaluate(element => getComputedStyle(element, '::after').backgroundColor)).toBe('rgb(255, 255, 255)');
+  const buttons = page.getByRole('navigation', { name: 'Privacy platforms' }).getByRole('button');
+  await expect(buttons).toHaveCount(4);
+  for (const label of ['WhatsApp', 'Gmail', 'Outlook', 'Teams']) {
+    const button = page.getByRole('button', { name: label, exact: true });
+    await expect(button).toHaveCSS('width', '36px');
+    expect(await button.locator('img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  }
+});
+
+for (const label of ['WhatsApp', 'Teams']) {
+  test(`${label} has outside controls on the left and inside controls on the right`, async ({ page }) => {
+    await page.setViewportSize({ width: 640, height: 600 });
+    await open(page);
+    await page.getByRole('button', { name: label, exact: true }).click();
+    const outside = page.getByRole('group', { name: 'Outside Chat Options', exact: true });
+    const inside = page.getByRole('group', { name: 'Inside Chat Options', exact: true });
+    await expect(outside.getByRole('switch', { name: 'Conversation previews', exact: true })).toBeVisible();
+    await expect(inside.getByRole('switch', { name: 'Header picture', exact: true })).toBeVisible();
+    const left = await outside.boundingBox();
+    const right = await inside.boundingBox();
+    expect(left.x + left.width).toBeLessThan(right.x);
+    expect(Math.abs(left.y - right.y)).toBeLessThan(1);
+    expect(right.x + right.width).toBeLessThanOrEqual(640);
+    expect(await page.locator('main').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  });
+}
+
+for (const [key, config] of Object.entries(platforms)) {
+  test(`${config.label} retains every setting and its exact storage mapping in the blue UI`, async ({ page }) => {
+    const tabs = Object.values(platforms).map((platform, index) => ({ id: index + 1, url: `https://${platform.hosts[0]}/` }));
+    await open(page, { prefs: { pc_settingsVersion: 2 }, tabs });
+    await page.getByRole('button', { name: key === 'teams' ? 'Teams' : config.label, exact: true }).click();
+    if (key === 'whatsapp') await page.getByText('Additional controls', { exact: true }).click();
+    if (key === 'gmail' || key === 'outlook') {
+      await expect(page.getByRole('group', { name: 'Email Options', exact: true })).toHaveCount(1);
+      await expect(page.locator('.chat-columns')).toHaveCount(0);
+    }
+    const controls = [
+      ...config.options,
+      { key: config.allKey, label: key === 'whatsapp' ? /^Outside Blur everything/ : /^Blur everything/ },
+      ...(config.insideAllKey ? [{ key: config.insideAllKey, label: /^Inside Blur everything/ }] : []),
+    ];
+    for (const control of controls) {
+      const toggle = page.getByRole('switch', { name: control.label, exact: typeof control.label === 'string' });
+      await toggle.check();
+      await expect(page.getByRole('status')).toHaveText('Preferences saved');
+      expect(await page.evaluate(() => __writes.at(-1))).toEqual({ [control.key]: true });
+      expect(await page.evaluate(() => __sent.at(-1))).toEqual({ id: Object.keys(platforms).indexOf(key) + 1, message: { action: 'privacyCurtainRefresh', platform: key } });
+      await toggle.uncheck();
+      await expect(page.getByRole('status')).toHaveText('Preferences saved');
+      expect(await page.evaluate(() => __writes.at(-1))).toEqual({ [control.key]: false });
+    }
+    expect(await page.evaluate(() => Object.entries(__getPrefs()).filter(([name, value]) => name !== 'pc_settingsVersion' && value !== false))).toEqual([]);
+  });
+}
+
 test('popup scrolling fits a smaller height constraint without clipping the final controls', async ({ page }) => {
-  await page.setViewportSize({ width: 407, height: 510 });
+  await page.setViewportSize({ width: 655, height: 510 });
   await open(page);
   const measured = await dimensions(page);
   expect(measured['main.popup'].height).toBe(510);
