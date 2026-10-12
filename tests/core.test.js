@@ -24,7 +24,10 @@ for (const [platform, { options, allKey }] of Object.entries(platforms)) {
       assert.equal(buildCSS(platform, { [key]: true, [`pc_${platform}_enabled`]: false }), '');
     }
     const all = buildCSS(platform, { [allKey]: true });
-    for (const { selectors } of options) for (const selector of selectors) assert.ok(all.includes(selector));
+    for (const { selectors, scope } of options.filter(option => platform !== 'whatsapp' || option.scope === 'outside')) {
+      assert.ok(scope);
+      for (const selector of selectors) assert.ok(all.includes(selector));
+    }
     assert.equal(buildCSS(platform, { [allKey]: false }), '');
     assert.equal(buildCSS(platform, { ...defaults, [options[0].key]: true }), buildCSS(platform, { [options[0].key]: true }));
   });

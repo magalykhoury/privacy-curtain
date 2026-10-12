@@ -75,11 +75,11 @@ test('platform pause preserves selected categories and current website toggle ta
 
 test('master switch preserves individual preferences when switched off', async ({ page }) => {
   await open(page, { prefs: { blurName: true, blurImage: false } });
-  await page.getByRole('switch', { name: /^Blur everything/ }).check();
+  await page.getByRole('switch', { name: /^Outside Blur everything/ }).check();
   await expect(page.getByRole('status')).toHaveText('Preferences saved');
   await expect(page.getByRole('switch', { name: 'Profile pictures', exact: true })).toBeChecked();
   await expect(page.getByRole('switch', { name: 'Profile pictures', exact: true })).toBeDisabled();
-  await page.getByRole('switch', { name: /^Blur everything/ }).uncheck();
+  await page.getByRole('switch', { name: /^Outside Blur everything/ }).uncheck();
   await expect(page.getByRole('status')).toHaveText('Preferences saved');
   await expect(page.getByRole('switch', { name: 'Profile pictures', exact: true })).not.toBeChecked();
   await expect(page.getByRole('switch', { name: 'Contact and group names', exact: true })).toBeChecked();
@@ -127,8 +127,47 @@ test('failed saving displays an error and preserves the switch state', async ({ 
 test('failed loading disables controls and presents a retry action', async ({ page }) => {
   await open(page, { failRead: true });
   await expect(page.getByRole('alert')).toContainText('Preferences could not be loaded');
-  await expect(page.getByRole('switch', { name: /^Blur everything/ })).toBeDisabled();
+  await expect(page.getByRole('switch', { name: /^Outside Blur everything/ })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+});
+
+test('WhatsApp outside and inside masters affect only their own controls and storage keys', async ({ page }) => {
+  await open(page, { prefs: { blurAll: true, blurChatAllMessages: false, blurChatMedia: false } });
+  const messages = page.getByRole('switch', { name: 'Incoming and outgoing messages', exact: true });
+  await expect(messages).not.toBeChecked();
+  await expect(messages).toBeEnabled();
+  await expect(page.getByRole('switch', { name: 'Header picture', exact: true })).not.toBeChecked();
+  await messages.check();
+  await expect(page.getByRole('status')).toHaveText('Preferences saved');
+  await page.getByRole('switch', { name: /^Outside Blur everything/ }).uncheck();
+  await expect(page.getByRole('status')).toHaveText('Preferences saved');
+  await expect(messages).toBeChecked();
+  await page.getByRole('switch', { name: /^Inside Blur everything/ }).check();
+  await expect(page.getByRole('status')).toHaveText('Preferences saved');
+  await expect(page.getByRole('switch', { name: 'Images and media', exact: true })).toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Contact and group names', exact: true })).not.toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Contact and group names', exact: true })).toBeEnabled();
+  const prefs = await page.evaluate(() => __getPrefs());
+  expect(prefs.blurAll).toBe(false);
+  expect(prefs.pc_whatsapp_insideAll).toBe(true);
+  expect(prefs.blurChatAllMessages).toBe(true);
+  expect(prefs.blurChatMedia).toBe(false);
+});
+
+test('coverage diagnostics request a refresh when an older content engine is present', async ({ page }) => {
+  await open(page);
+  await page.getByText('WhatsApp coverage diagnostics', { exact: true }).click();
+  await page.getByRole('button', { name: 'Check WhatsApp coverage' }).click();
+  await expect(page.getByRole('alert')).toContainText('refresh it after reloading Privacy Curtain Dev');
+});
+
+test('coverage diagnostics render the current engine count report without writing preferences', async ({ page }) => {
+  await open(page, { prefs: { pc_settingsVersion: 2 }, diagnosticResponse: { engineRevision: '2.0.1-whatsapp-scopes', platform: 'whatsapp', ready: true, structure: [{ selector: '#pane-side', total: 1 }] } });
+  await page.getByText('WhatsApp coverage diagnostics', { exact: true }).click();
+  await page.getByRole('button', { name: 'Check WhatsApp coverage' }).click();
+  await expect(page.getByLabel('Count-only WhatsApp diagnostics')).toContainText('2.0.1-whatsapp-scopes');
+  expect(await page.evaluate(() => __writes)).toEqual([]);
+  expect(await page.evaluate(() => __sent)).toEqual([{ id: 1, message: { action: 'privacyCurtainDiagnostics' } }]);
 });
 
 test('unsupported page keeps platform settings available without claiming current-page protection', async ({ page }) => {

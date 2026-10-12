@@ -49,5 +49,7 @@ select { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; b
 .error p { margin: 8px 0; }
 .error button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--soft); color: var(--text); }
 footer { font-size: 10px; line-height: 1.5; color: var(--muted); margin-top: 12px; }
+.diagnostic-button { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--soft); color: var(--text); font-size: 12px; }
+.diagnostic-report { font-size: 10px; line-height: 1.5; max-height: 240px; overflow: auto; background: var(--soft); padding: 10px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 360px) { .popup { padding: 14px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }

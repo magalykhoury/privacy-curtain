@@ -33,7 +33,7 @@ export async function refreshTabs(api, platformKey) {
 export async function savePreferences(api, platformKey, patch) {
   const platform = platforms[platformKey];
   if (!platform) throw new Error('Unsupported platform');
-  const allowed = [platform.allKey, `pc_${platformKey}_enabled`, ...platform.options.map(({ key }) => key), 'pc_hoverReveal', 'pc_blurIntensity', 'pc_theme'];
+  const allowed = [platform.allKey, ...(platform.insideAllKey ? [platform.insideAllKey] : []), `pc_${platformKey}_enabled`, ...platform.options.map(({ key }) => key), 'pc_hoverReveal', 'pc_blurIntensity', 'pc_theme'];
   const normalized = normalize(patch);
   if (!Object.keys(patch).length || Object.entries(patch).some(([key, value]) => !allowed.includes(key) || normalized[key] !== value)) throw new Error('Invalid preference update');
   await api.storage.sync.set(patch);

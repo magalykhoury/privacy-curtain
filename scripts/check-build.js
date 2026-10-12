@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
 import '../public/shared.js';
 
+const sourceManifest = JSON.parse(await readFile(new URL('../public/manifest.json', import.meta.url), 'utf8'));
 for (const mode of ['production-v2', 'development-v2']) {
   const root = new URL(`../builds/${mode}/`, import.meta.url);
   const manifest = JSON.parse(await readFile(new URL('manifest.json', root), 'utf8'));
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '2.0.0');
+  assert.equal(manifest.version, sourceManifest.version);
   assert.equal(manifest.name, mode === 'development-v2' ? 'Privacy Curtain Dev' : 'Privacy Curtain');
   assert.ok(!manifest.key && !manifest.update_url);
   assert.deepEqual(manifest.permissions, ['storage', 'scripting', 'activeTab']);

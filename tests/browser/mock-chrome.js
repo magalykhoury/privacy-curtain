@@ -1,5 +1,5 @@
 // Only preferences are mocked. Fixtures and network routes contain no real account data.
-export function mockChrome({ prefs = {}, activeUrl = 'https://web.whatsapp.com/', tabs, failRead = false, failWrite = false, delayRead = 0, delayMessage = 0 } = {}) {
+export function mockChrome({ prefs = {}, activeUrl = 'https://web.whatsapp.com/', tabs, failRead = false, failWrite = false, delayRead = 0, delayMessage = 0, diagnosticResponse } = {}) {
   let stored = { ...prefs };
   const changed = new Set();
   const messages = new Set();
@@ -37,6 +37,7 @@ export function mockChrome({ prefs = {}, activeUrl = 'https://web.whatsapp.com/'
       async sendMessage(id, message) {
         globalThis.__sent.push({ id, message });
         if (delayMessage) await new Promise(resolve => setTimeout(resolve, delayMessage));
+        if (message.action === 'privacyCurtainDiagnostics') return diagnosticResponse;
         return { success: true, platform: message.platform };
       },
     },

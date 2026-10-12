@@ -2,6 +2,8 @@
 
 Status: locally built development candidate, not published or installed into the user's profile. Live authenticated website acceptance is pending. The original instruction document remains unchanged and untracked.
 
+**2.0.1 correction:** the initial 2.0.0 implementation and its tests treated WhatsApp `blurAll` as covering both scopes. Live user feedback established that the intended control is outside-only. [The scope-fix record](WHATSAPP_SCOPE_FIX.md) supersedes that assumption, documents the new regressions and provides count-only live diagnostics. The initial validation results below are historical, not proof of current live compatibility.
+
 ## Safety inspection and backup
 
 - Baseline branch: `main`; baseline commit: `3acb6d4` (name, popup size and icons). Recent history also included `70751a4`, `717cc44`, `31840d0` and `98f04f5`.
@@ -42,7 +44,7 @@ Previously, the popup read all storage, wrote the entire preference object on ea
 Now:
 
 - `public/shared.js` owns exact HTTPS host detection, category definitions, defaults, validation, migration and a single CSS rule pair. The popup bundle, worker and content script use the same definitions.
-- List rules are confined to WhatsApp's list roots/rows. Header and message/media rules are confined to `#main`. Blur everything combines all implemented categories rather than blurring the application or whole WhatsApp rows.
+- List rules are confined to WhatsApp's list roots/rows. Header and message/media rules are confined to `#main`. In 2.0.1, Outside Blur everything combines only list categories; the independent inside master combines only header/message/media categories. Final-target scope guards prevent crossover.
 - Native buttons, editable fields and popup-menu controls are excluded from targets. Existing site inline styles are not cleared.
 - `public/content.js` installs one guarded controller/style element. CSS automatically matches newly inserted and recycled elements, including same-host SPA navigation. One observer watches the document root, direct root children and the small style element for repair; it never observes the body subtree or scans conversation text.
 - Known targets are temporarily concealed without hover while preferences load. On initial storage read failure this concealment remains. Once preferences load, only configured categories apply. Reveal/conceal has no filter transition.

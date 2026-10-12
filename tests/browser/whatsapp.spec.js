@@ -51,10 +51,17 @@ for (const [key, ids] of Object.entries(targets)) {
   });
 }
 
-test('Blur Everything combines list, group, header, messages and media without blurring controls', async ({ page }) => {
+test('outside master protects only the conversation list and switching it off clears unintended inside blur', async ({ page }) => {
   await load(page, { blurAll: true, pc_hoverReveal: false });
-  for (const id of new Set(Object.values(targets).flat())) await expect(page.locator(`#${id}`)).toHaveCSS('filter', 'blur(5px)');
+  const outside = [...targets.blurImage, ...targets.blurName, ...targets.blurMessage, ...targets.blurUsername];
+  const inside = Object.entries(targets).filter(([key]) => !['blurImage', 'blurName', 'blurMessage', 'blurUsername'].includes(key)).flatMap(([, ids]) => ids);
+  for (const id of outside) await expect(page.locator(`#${id}`)).toHaveCSS('filter', 'blur(5px)');
+  for (const id of inside) expect(await effectiveBlur(page, id)).toBe('none');
   for (const id of controls) expect(await effectiveBlur(page, id)).toBe('none');
+  await page.evaluate(() => __setPrefs({ blurAll: false }));
+  for (const id of new Set(Object.values(targets).flat())) expect(await effectiveBlur(page, id)).toBe('none');
+  expect(await page.locator('#platform-blur-style').textContent()).toBe('');
+  await page.evaluate(() => __setPrefs({ blurAll: true }));
   await page.evaluate(() => __setPrefs({ pc_whatsapp_enabled: false }));
   for (const id of new Set(Object.values(targets).flat())) await expect(page.locator(`#${id}`)).toHaveCSS('filter', 'none');
   await page.evaluate(() => __setPrefs({ pc_whatsapp_enabled: true, pc_blurIntensity: 10 }));
@@ -62,7 +69,7 @@ test('Blur Everything combines list, group, header, messages and media without b
 });
 
 test('hover reveals only intended elements and re-conceals immediately on leave', async ({ page }) => {
-  await load(page, { blurAll: true });
+  await load(page, { blurAll: true, pc_whatsapp_insideAll: true });
   for (const id of ['name', 'avatar', 'preview', 'incoming', 'outgoing', 'header-name', 'header-avatar', 'group-name']) {
     await page.locator(`#${id}`).hover();
     await expect(page.locator(`#${id}`)).toHaveCSS('filter', 'none');
@@ -77,7 +84,7 @@ test('hover reveals only intended elements and re-conceals immediately on leave'
 });
 
 test('virtualized new rows, recycled rows, conversation switching, navigation and refresh stay protected', async ({ page }) => {
-  await load(page, { blurAll: true, pc_hoverReveal: false });
+  await load(page, { blurAll: true, pc_whatsapp_insideAll: true, pc_hoverReveal: false });
   await page.evaluate(() => {
     const row = document.querySelector('[data-testid="list-item-group"]').cloneNode(true);
     row.querySelectorAll('[id]').forEach(el => { el.id = `dynamic-${el.id}`; });
@@ -90,6 +97,74 @@ test('virtualized new rows, recycled rows, conversation switching, navigation an
   for (const id of ['dynamic-group-name', 'dynamic-group-avatar', 'dynamic-group-preview', 'name', 'incoming', 'header-name']) await expect(page.locator(`#${id}`)).toHaveCSS('filter', 'blur(5px)');
   await page.reload();
   await expect(page.locator('#name')).toHaveCSS('filter', 'blur(5px)');
+});
+
+test('inside master operates independently and all-off removes both scopes', async ({ page }) => {
+  await load(page, { blurAll: false, pc_whatsapp_insideAll: true, pc_hoverReveal: false });
+  const inside = Object.entries(targets).filter(([key]) => !['blurImage', 'blurName', 'blurMessage', 'blurUsername'].includes(key)).flatMap(([, ids]) => ids);
+  for (const id of inside) await expect(page.locator(`#${id}`)).toHaveCSS('filter', 'blur(5px)');
+  for (const id of ['avatar', 'name', 'preview', 'group-name', 'group-preview']) expect(await effectiveBlur(page, id)).toBe('none');
+  await page.evaluate(() => __setPrefs({ blurAll: true }));
+  await expect(page.locator('#name')).toHaveCSS('filter', 'blur(5px)');
+  await page.evaluate(() => __setPrefs({ blurAll: false }));
+  await expect(page.locator('#incoming')).toHaveCSS('filter', 'blur(5px)');
+  await expect(page.locator('#name')).toHaveCSS('filter', 'none');
+  await page.evaluate(() => __setPrefs({ pc_whatsapp_insideAll: false }));
+  for (const id of new Set(Object.values(targets).flat())) expect(await effectiveBlur(page, id)).toBe('none');
+  expect(await page.locator('#platform-blur-style').textContent()).toBe('');
+});
+
+test('turning off the outside master preserves explicitly selected inside switches', async ({ page }) => {
+  await load(page, { blurAll: true, blurChatAllMessages: true, blurChatMedia: false, pc_hoverReveal: false });
+  await page.evaluate(() => __setPrefs({ blurAll: false }));
+  await expect(page.locator('#name')).toHaveCSS('filter', 'none');
+  await expect(page.locator('#incoming')).toHaveCSS('filter', 'blur(5px)');
+  await expect(page.locator('#outgoing')).toHaveCSS('filter', 'blur(5px)');
+  await expect(page.locator('#incoming-media')).toHaveCSS('filter', 'none');
+  expect(await page.evaluate(() => __getPrefs().blurChatAllMessages)).toBe(true);
+});
+
+test('scope guards reject sidebar-shaped elements in the conversation and message-shaped elements in the sidebar', async ({ page }) => {
+  await load(page, { blurAll: true, pc_whatsapp_insideAll: true, pc_hoverReveal: false });
+  await page.evaluate(() => {
+    const fakeList = document.createElement('div');
+    fakeList.dataset.testid = 'chat-list';
+    fakeList.innerHTML = '<div role="row"><span data-testid="cell-frame-title" id="misplaced-name">Synthetic misplaced name</span></div>';
+    document.querySelector('#main').append(fakeList);
+    const nested = document.createElement('div');
+    nested.id = 'main';
+    nested.innerHTML = '<div class="message-in"><span class="selectable-text" id="misplaced-message">Synthetic misplaced message</span></div>';
+    document.querySelector('#pane-side').append(nested);
+  });
+  for (const id of ['misplaced-name', 'misplaced-message']) expect(await effectiveBlur(page, id)).toBe('none');
+});
+
+test('count-only diagnostics attribute the expected CSS and never include fixture content or attribute values', async ({ page }) => {
+  await load(page, { blurAll: true, pc_hoverReveal: false });
+  const report = await page.evaluate(() => __message({ action: 'privacyCurtainDiagnostics' }));
+  expect(report.engineRevision).toBe('2.0.1-whatsapp-scopes');
+  expect(report.ready).toBe(true);
+  expect(report.phase).toBe('configured');
+  expect(report.style.cssMatchesExpected).toBe(true);
+  expect(report.style.revisionMatches).toBe(true);
+  expect(report.style.instances).toBe(1);
+  expect(report.preferences).toMatchObject({ outsideAll: true, insideAll: false });
+  for (const category of report.categories) {
+    expect(category.active).toBe(category.scope === 'outside');
+    for (const selector of category.selectors) {
+      if (category.scope === 'outside') {
+        expect(selector.cssMatches.matches.header).toBe(0);
+        expect(selector.cssMatches.matches.conversation).toBe(0);
+      } else expect(selector.cssMatches.matches.sidebar).toBe(0);
+    }
+  }
+  expect(JSON.stringify(report)).not.toMatch(/Fixture Person|Fixture Group|Synthetic incoming|Synthetic preview|data:image|synthetic-extension/);
+  await page.evaluate(() => __setPrefs({ blurAll: false }));
+  const off = await page.evaluate(() => __message({ action: 'privacyCurtainDiagnostics' }));
+  expect(off.style.rulesActive).toBe(false);
+  expect(off.categories.every(category => !category.active)).toBe(true);
+  await page.evaluate(() => { const legacy = document.createElement('style'); legacy.id = 'whatsapp-blur-style'; document.head.append(legacy); });
+  expect(await page.evaluate(() => __message({ action: 'privacyCurtainDiagnostics' }).style.legacyStylePresent)).toBe(true);
 });
 
 test('style deletion or replacement is repaired without a body subtree observer or duplicate listeners', async ({ page }) => {
@@ -107,6 +182,8 @@ test('style deletion or replacement is repaired without a body subtree observer 
 test('storage load failure stays concealed and messages cannot force another platform or reveal preferences', async ({ page }) => {
   await load(page, {}, { failRead: true });
   await expect(page.locator('#name')).toHaveCSS('filter', 'blur(5px)');
+  await expect.poll(() => page.evaluate(() => __message({ action: 'privacyCurtainDiagnostics' }).phase)).toBe('storage-error-concealment');
+  expect(await page.evaluate(() => __message({ action: 'privacyCurtainDiagnostics' }).preferences)).toBeNull();
   await page.locator('#name').hover();
   await expect(page.locator('#name')).toHaveCSS('filter', 'blur(5px)');
   expect(await page.evaluate(() => __message({ action: 'updateBlur', platform: 'gmail', prefs: { blurAll: false } }))).toEqual({ success: false });

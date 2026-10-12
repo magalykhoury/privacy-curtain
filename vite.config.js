@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
       const manifest = JSON.parse(readFileSync(new URL('./public/manifest.json', import.meta.url), 'utf8'));
       if (mode === 'development') {
         manifest.name = 'Privacy Curtain Dev';
-        manifest.version_name = '2.0 development — isolated testing';
+        manifest.version_name = `${manifest.version} development — WhatsApp scope isolation`;
         manifest.action.default_title = 'Privacy Curtain Dev';
       }
       this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify(manifest, null, 2) });

@@ -4,6 +4,8 @@ Privacy Curtain is a local Chrome extension for selective visual blurring on Wha
 
 **Release status: development candidate.** Automated checks use synthetic DOM fixtures and mocked Chrome APIs. Current authenticated website layouts have not been manually verified. A successful build or a green test suite does not prove coverage on your live account.
 
+Current development version: **2.0.1**. WhatsApp's outside and inside masters are independent. See [the scope fix and count-only diagnostic guide](docs/WHATSAPP_SCOPE_FIX.md).
+
 ## Safely load the development extension
 
 The ready-to-test build is:
@@ -22,13 +24,14 @@ The extension has not been automatically installed, reloaded, published or uploa
 
 ## WhatsApp manual acceptance checklist
 
-Start with platform protection on, Blur everything off, and Hover to reveal off. Use only a test account and do not share real page HTML, messages, names or screenshots.
+Start with platform protection on, both **Outside Blur everything** and **Inside Blur everything** off, and Hover to reveal off. Use only a test account and do not share real page HTML, messages, names or screenshots.
 
 - With **Profile pictures** alone enabled, inspect individual and group avatars and default avatar icons. Names and previews should stay readable.
 - With **Contact and group names** alone enabled, check individual and group names, including names rendered without the old CSS classes. Avatars and previews should stay readable.
 - With **Conversation previews** alone enabled, check last-message text and group previews. Names and avatars should stay readable.
 - Open a conversation. Verify **Header picture**, **Header name**, **Incoming and outgoing messages**, and **Images and media** independently. Search, send, menu and compose controls should stay usable and unblurred.
-- Turn on **Blur everything**. Check all list/header/message/media categories; it must not blur the whole application or unrelated controls.
+- Turn on **Outside Blur everything** with every inside switch off. Only list avatars/names/previews should blur. Turn it off: all its blur should clear. Opened messages and media must stay clear throughout.
+- Turn on **Inside Blur everything** with outside controls off. Check header/message/media protection; the conversation list must remain clear. Test inside individual switches independently, then both masters on and all-off.
 - Enable **Hover to reveal**. Hover a name, avatar, preview or message individually. Only its intended target should reveal. Move away: it should immediately blur again. Disable hover: the content must stay blurred even under the pointer.
 - Scroll far enough to virtualize the list, search/archive conversations where applicable, switch chats, refresh and navigate back/forward. Newly appearing matching items should already be blurred.
 - Open a second WhatsApp tab. Change a category in the first popup and confirm both tabs update. Pause WhatsApp protection and resume: the chosen categories should be retained.
@@ -40,9 +43,11 @@ Record any uncovered category as a failed acceptance check. The candidate must n
 
 WhatsApp has separate conversation-list controls (avatars, names, previews) and opened-conversation controls (header image/name, messages and media). Additional controls retain legacy usernames and latest-message text/images. **Images and media** is a new independent control; upgrading does not silently expand the old latest-image setting.
 
+WhatsApp's existing `blurAll` key now controls the **outside list only**. Its new `pc_whatsapp_insideAll` key controls the opened conversation only and defaults off. The outside master never enables, disables or overwrites inside settings. Expand Additional controls when testing all-off to check the preserved legacy latest-message switches too.
+
 Gmail, Outlook and Teams have their own panels. Their selectors are tested against synthetic structures; coverage on current live layouts, localized variants and embedded email frames still needs manual verification. Blur everything means every implemented category, not the entire application.
 
-Platform protection pauses/resumes without overwriting individual choices. Blur everything overrides individual categories while enabled and restores their previous choices when switched off. Hover reveal and blur intensity apply to all platforms. Intensity ranges from 3 to 16 px. Blur is a visual filter, not encryption or a guarantee that every text size is unreadable; select an adequate intensity for your display. Notifications, tooltips and content outside the configured selectors are outside coverage.
+Platform protection pauses/resumes without overwriting individual choices. Each master overrides only its own scope while enabled and restores that scope's previous choices when switched off. Other platforms keep their platform-wide master. Hover reveal and blur intensity apply to all platforms. Intensity ranges from 3 to 16 px. Blur is a visual filter, not encryption or a guarantee that every text size is unreadable; select an adequate intensity for your display. Notifications, tooltips and content outside the configured selectors are outside coverage.
 
 The popup uses the existing eye branding, local assets, keyboard-operable labeled switches, visible focus, system/light/dark themes and reduced-motion support. Its width is 392 px (or the available viewport); its height is capped at 600 px with scrolling for additional controls.
 
@@ -80,4 +85,4 @@ These tests do **not** exercise a real installed MV3 extension, real Chrome stor
 
 Permissions are limited to storage, scripting, activeTab and exact HTTPS hosts for `web.whatsapp.com`, `mail.google.com`, `outlook.live.com`, `outlook.office.com`, `outlook.office365.com`, `outlook.cloud.microsoft`, `teams.microsoft.com`, `teams.live.com` and `teams.cloud.microsoft`. There are no wildcard parent domains, broad tabs permission, telemetry or remotely hosted executable code. Popup CSP disallows network connections and remote scripts/styles/fonts.
 
-Migration retains every existing platform preference key, preserves false values and adds metadata/master/general keys. No local or sync storage is cleared. Legacy-only `blurEnabled` profiles map to WhatsApp Blur everything; existing WhatsApp category keys take precedence. Details and verification results are in [MODERNIZATION.md](docs/MODERNIZATION.md).
+Migration retains every existing platform preference key, preserves false values and adds metadata/master/general keys. No local or sync storage is cleared. Legacy-only `blurEnabled` profiles map to WhatsApp's outside master; existing WhatsApp category keys take precedence. Existing inside selections remain independent; the new inside master defaults off. Details and verification results are in [MODERNIZATION.md](docs/MODERNIZATION.md).

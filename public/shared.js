@@ -3,39 +3,40 @@
   const row = `${list} :is([role="row"], [role="listitem"], [data-testid="cell-frame-container"])`;
   const messages = '#main :is(.message-in, .message-out, [data-testid="msg-container"])';
   const latest = '#main :is(.message-in, .message-out, [data-testid="msg-container"]):not(:has(~ :is(.message-in, .message-out, [data-testid="msg-container"])))';
-  const option = (key, label, section, selectors) => ({ key, label, section, selectors });
+  const engineRevision = '2.0.1-whatsapp-scopes';
+  const option = (key, label, section, selectors, scope = 'platform') => ({ key, label, section, selectors, scope });
   const platforms = {
     whatsapp: {
-      label: 'WhatsApp', hosts: ['web.whatsapp.com'], allKey: 'blurAll',
+      label: 'WhatsApp', hosts: ['web.whatsapp.com'], allKey: 'blurAll', insideAllKey: 'pc_whatsapp_insideAll',
       options: [
         option('blurImage', 'Profile pictures', 'Conversation list', [
           `${row} img:not(.emoji):not([data-plain-text]):not([data-testid="cell-frame-secondary"] img)`,
           `${row} :is([data-icon="default-user"], [data-icon="default-group"], [data-testid="avatar"])`,
-        ]),
+        ], 'outside'),
         option('blurName', 'Contact and group names', 'Conversation list', [
           `${row} [data-testid="cell-frame-title"]`, `${row} [data-testid="cell-frame-label"]`,
           `${row} span[title][dir="auto"]:not([data-testid="cell-frame-title"] span):not([data-testid="cell-frame-secondary"] span)`,
-        ]),
+        ], 'outside'),
         option('blurMessage', 'Conversation previews', 'Conversation list', [
           `${row} [data-testid="cell-frame-secondary"]`, `${row} [data-testid="chat-list-item-preview"]`, `${row} ._ak8k span[dir="auto"]`,
-        ]),
+        ], 'outside'),
         option('blurChatImage', 'Header picture', 'Opened conversation', [
           '#main header img:not(.emoji):not([data-plain-text])',
           '#main header :is([data-icon="default-user"], [data-icon="default-group"], [data-testid="avatar"])',
-        ]),
+        ], 'inside'),
         option('blurChatName', 'Header name', 'Opened conversation', [
           '#main header [data-testid="conversation-info-header-chat-title"]',
           '#main header span[title][dir="auto"]:not([data-testid="conversation-info-header-chat-title"] span)',
-        ]),
+        ], 'inside'),
         option('blurChatAllMessages', 'Incoming and outgoing messages', 'Opened conversation', [
           `${messages} .selectable-text`, `${messages} [data-testid="msg-text"]:not(.selectable-text)`,
-        ]),
+        ], 'inside'),
         option('blurChatMedia', 'Images and media', 'Opened conversation', [
           `${messages} :is(img:not(.emoji):not([data-plain-text]), video, canvas, [data-testid="image-thumb"], [data-testid="video-thumb"])`,
-        ]),
-        option('blurChatLastImage', 'Latest message images (legacy)', 'Additional controls', [`${latest} img:not(.emoji):not([data-plain-text])`]),
-        option('blurChatLastMessage', 'Latest message text (legacy)', 'Additional controls', [`${latest} .selectable-text`]),
-        option('blurUsername', 'Legacy username labels', 'Additional controls', [`${row} span._1wjpf`]),
+        ], 'inside'),
+        option('blurChatLastImage', 'Latest message images (legacy)', 'Additional controls', [`${latest} img:not(.emoji):not([data-plain-text])`], 'inside'),
+        option('blurChatLastMessage', 'Latest message text (legacy)', 'Additional controls', [`${latest} .selectable-text`], 'inside'),
+        option('blurUsername', 'Legacy username labels', 'Additional controls', [`${row} span._1wjpf`], 'outside'),
       ],
     },
     gmail: {
@@ -77,7 +78,7 @@
       return Object.keys(platforms).find(key => platforms[key].hosts.includes(parsed.hostname)) ?? null;
     } catch { return null; }
   }
-  const defaults = { pc_hoverReveal: true, pc_blurIntensity: 5, pc_theme: 'system', pc_settingsVersion: 2 };
+  const defaults = { pc_hoverReveal: true, pc_blurIntensity: 5, pc_theme: 'system', pc_settingsVersion: 2, pc_whatsapp_insideAll: false };
   for (const [key, platform] of Object.entries(platforms)) {
     defaults[`pc_${key}_enabled`] = true;
     defaults[platform.allKey] = false;
@@ -111,22 +112,42 @@
     }
     return patch;
   }
+  function getBlurTarget(selectors) {
+    // :is() scopes :hover to EVERY member, including nested selector lists.
+    return `:is(${[...new Set(selectors)].join(', ')}):not(button, button *, input, textarea, select, [contenteditable="true"], [contenteditable="true"] *, [role="button"][aria-haspopup], [role="button"][aria-haspopup] *)`;
+  }
   function createBlurCSS(selectors, intensity, reveal) {
     if (!selectors.length) return '';
-    // :is() scopes :hover to EVERY member, including nested selector lists.
-    const target = `:is(${[...new Set(selectors)].join(', ')}):not(button, button *, input, textarea, select, [contenteditable="true"], [contenteditable="true"] *, [role="button"][aria-haspopup], [role="button"][aria-haspopup] *)`;
+    const target = getBlurTarget(selectors);
     const blur = `${target} { filter: blur(${intensity}px) !important; transition: none !important; }`;
     return reveal ? `${blur}\n${target}:hover { filter: none !important; }` : blur;
+  }
+  function getActiveOptions(platformKey, raw) {
+    const platform = platforms[platformKey];
+    const prefs = normalize(raw);
+    if (!platform || !prefs[`pc_${platformKey}_enabled`]) return [];
+    return platform.options.filter(option => {
+      const master = platformKey === 'whatsapp' && option.scope === 'inside' ? platform.insideAllKey : platform.allKey;
+      return prefs[option.key] || prefs[master];
+    });
+  }
+  function getOptionSelectors(platformKey, option) {
+    if (platformKey !== 'whatsapp') return option.selectors;
+    const guard = option.scope === 'outside'
+      ? `:where(${list} *):not(#main, #main *)`
+      : `:where(#main *):not(${list}, ${list} *)`;
+    // Guard the final target as well as the selector's ancestor path.
+    return option.selectors.map(selector => `:is(${selector})${guard}`);
   }
   function buildCSS(platformKey, raw) {
     const platform = platforms[platformKey];
     const prefs = normalize(raw);
     if (!platform || !prefs[`pc_${platformKey}_enabled`]) return '';
     const all = prefs[platform.allKey];
-    const selectors = platform.options.flatMap(({ key, selectors }) => (all || prefs[key]) ? selectors : []);
+    const selectors = getActiveOptions(platformKey, prefs).flatMap(option => getOptionSelectors(platformKey, option));
     if (all) selectors.push(...(platform.allSelectors ?? []));
     // One rule pair prevents specificity conflicts between overlapping categories.
     return createBlurCSS(selectors, prefs.pc_blurIntensity, prefs.pc_hoverReveal);
   }
-  globalThis.PrivacyCurtain = Object.freeze({ platforms, defaults, settingsKeys, normalize, migrationPatch, detectPlatform, createBlurCSS, buildCSS });
+  globalThis.PrivacyCurtain = Object.freeze({ engineRevision, platforms, defaults, settingsKeys, normalize, migrationPatch, detectPlatform, getBlurTarget, createBlurCSS, getActiveOptions, getOptionSelectors, buildCSS });
 })();

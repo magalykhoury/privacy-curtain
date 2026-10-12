@@ -39,6 +39,19 @@ test('general reveal and intensity settings route to every supported platform', 
   assert.equal(new Set(sent.map(({ id }) => id)).size, 4);
 });
 
+test('outside and inside masters persist independent patches without expanding inside defaults', async () => {
+  const { api, stored, writes } = mockApi({ blurChatAllMessages: false, blurChatMedia: false });
+  await savePreferences(api, 'whatsapp', { blurAll: true });
+  assert.equal(stored.blurChatAllMessages, false);
+  assert.equal(stored.blurChatMedia, false);
+  assert.equal(stored.pc_whatsapp_insideAll, undefined);
+  await savePreferences(api, 'whatsapp', { pc_whatsapp_insideAll: true });
+  await savePreferences(api, 'whatsapp', { blurAll: false });
+  assert.equal(stored.pc_whatsapp_insideAll, true);
+  assert.deepEqual(writes, [{ blurAll: true }, { pc_whatsapp_insideAll: true }, { blurAll: false }]);
+  await assert.rejects(savePreferences(api, 'gmail', { pc_whatsapp_insideAll: true }));
+});
+
 test('missing content script is injected once with shared definitions and retried', async () => {
   const { api, sent, injected } = mockApi({}, [{ id: 7, url: 'https://web.whatsapp.com/' }]);
   let attempts = 0;
