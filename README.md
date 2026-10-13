@@ -6,6 +6,8 @@ Privacy Curtain is a local Chrome extension for selective visual blurring on Wha
 
 Current development version: **2.0.3**. This UI-only update restores the original blue-and-white appearance, icon buttons, rounded switches and two-column chat settings at the original 640 px width. The working 2.0.2 engine and storage mappings are unchanged. See [visual restoration, verification and exact reload instructions](docs/BLUE_UI_RESTORATION.md). WhatsApp's outside and inside masters remain independent; see [the scope fix and count-only diagnostic guide](docs/WHATSAPP_SCOPE_FIX.md).
 
+The platform icon buttons now sit directly below the Privacy Curtain header. The current-website information box is removed on every page; website detection still selects the appropriate platform automatically, and each platform retains its protection switch and blur controls. This compact popup update keeps version 2.0.3. Reload **Privacy Curtain Dev** at `chrome://extensions` in the existing test profile, then reopen its popup; do not remove it or clear its saved settings.
+
 The repository destination is **[magalykhoury/privacy-curtain](https://github.com/magalykhoury/privacy-curtain)**. `origin` and the default push destination point only there. The original repository is retained locally as `legacy-readonly`, with its push URL disabled. Work belongs to the new repository; never push to the original. Historical branches retain the original local main, the published GitHub main and the Gmail branch without merging old functionality into the modern engine.
 
 ## Safely load the development extension

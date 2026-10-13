@@ -64,16 +64,22 @@ test('switches every panel and persists individual controls across popup reopen'
   await expect(page.getByRole('switch', { name: 'Contact and group names', exact: true })).toBeChecked();
 });
 
-test('platform pause preserves selected categories and current website toggle targets the current site', async ({ page }) => {
+test('platform protection targets the selected platform and preserves its categories when paused', async ({ page }) => {
   await open(page, { prefs: { blurName: true, gmailBlurAll: true } });
   await page.getByRole('button', { name: 'Gmail', exact: true }).click();
-  await page.getByRole('switch', { name: 'Current website protection', exact: true }).uncheck();
+  await page.getByRole('switch', { name: 'Gmail protection', exact: true }).uncheck();
   await expect(page.getByRole('status')).toHaveText('Preferences saved');
   const prefs = await page.evaluate(() => __getPrefs());
-  expect(prefs.pc_whatsapp_enabled).toBe(false);
-  expect(prefs.pc_gmail_enabled).toBeUndefined();
+  expect(prefs.pc_whatsapp_enabled).toBeUndefined();
+  expect(prefs.pc_gmail_enabled).toBe(false);
+  expect(prefs.gmailBlurAll).toBe(true);
   expect(prefs.blurName).toBe(true);
+  await page.getByRole('switch', { name: 'Gmail protection', exact: true }).check();
+  await expect(page.getByRole('status')).toHaveText('Preferences saved');
+  await expect(page.getByRole('switch', { name: /^Blur everything/ })).toBeChecked();
   await page.getByRole('button', { name: 'WhatsApp', exact: true }).click();
+  await page.getByRole('switch', { name: 'WhatsApp protection', exact: true }).uncheck();
+  await expect(page.getByRole('status')).toHaveText('Preferences saved');
   await expect(page.getByText('Protection paused', { exact: true }).last()).toBeVisible();
   await page.getByRole('switch', { name: 'WhatsApp protection', exact: true }).check();
   await expect(page.getByRole('status')).toHaveText('Preferences saved');
@@ -177,12 +183,30 @@ test('coverage diagnostics render the current engine count report without writin
   expect(await page.evaluate(() => __sent)).toEqual([{ id: 1, message: { action: 'privacyCurtainDiagnostics' } }]);
 });
 
-test('unsupported page keeps platform settings available without claiming current-page protection', async ({ page }) => {
-  await open(page, { activeUrl: 'chrome://newtab/' });
-  await expect(page.getByText('Unsupported website', { exact: true })).toBeVisible();
-  await expect(page.getByRole('switch', { name: 'Current website protection', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'WhatsApp', exact: true })).toHaveAttribute('aria-pressed', 'true');
-});
+for (const [site, activeUrl, selected] of [
+  ['WhatsApp', 'https://web.whatsapp.com/', 'WhatsApp'],
+  ['Gmail', 'https://mail.google.com/mail/u/0/', 'Gmail'],
+  ['Outlook', 'https://outlook.office.com/mail/', 'Outlook'],
+  ['Teams', 'https://teams.microsoft.com/', 'Teams'],
+  ['unsupported', 'chrome://newtab/', 'WhatsApp'],
+]) {
+  test(`${site} keeps automatic platform selection without a website box and places icons below the header`, async ({ page }) => {
+    await open(page, { activeUrl });
+    await expect(page.getByRole('button', { name: selected, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('region', { name: 'Current website', exact: true })).toHaveCount(0);
+    await expect(page.locator('.current-site, .eyebrow, .site-detail')).toHaveCount(0);
+    await expect(page.getByText(/CURRENT WEBSITE|Unsupported website|Choose a platform below to edit its preferences/)).toHaveCount(0);
+    const picker = page.getByRole('navigation', { name: 'Privacy platforms' });
+    await expect(picker.getByRole('button')).toHaveCount(4);
+    expect(await picker.evaluate(element => element.previousElementSibling.matches('header.brand'))).toBe(true);
+    const headerBounds = await page.locator('header.brand').boundingBox();
+    const pickerBounds = await picker.boundingBox();
+    const gap = pickerBounds.y - headerBounds.y - headerBounds.height;
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(12);
+    expect(await page.evaluate(() => __writes.some(patch => Object.keys(patch).some(key => key !== 'pc_settingsVersion')))).toBe(false);
+  });
+}
 
 test('keyboard switches, focus visibility, reduced motion and compact width', async ({ page }) => {
   await open(page);

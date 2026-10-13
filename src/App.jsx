@@ -19,7 +19,6 @@ function Switch({ label, checked, disabled, onChange, description }) {
 export default function App() {
   const [prefs, setPrefs] = useState(normalize());
   const [platform, setPlatform] = useState('whatsapp');
-  const [current, setCurrent] = useState(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -52,9 +51,8 @@ export default function App() {
     api.tabs.query({ active: true, currentWindow: true }).then(tabs => {
       if (!alive) return;
       const detected = detectPlatform(tabs[0]?.url);
-      setCurrent(detected);
       if (detected) setPlatform(detected);
-    }).catch(() => { if (alive) setCurrent(null); });
+    }).catch(() => {});
     return () => { alive = false; api.storage.onChanged.removeListener(changed); };
   }, [attempt]);
 
@@ -107,10 +105,6 @@ export default function App() {
 
   return <main className="popup" data-theme={prefs.pc_theme} aria-busy={busy}>
     <header className="brand"><img src={eye} alt="" width="36" height="36" /><div><h1>Privacy Curtain</h1><p>A little more privacy.</p></div><span className="version">2.0.3</span></header>
-    <section className="current-site" aria-label="Current website">
-      <div><span className="eyebrow">CURRENT WEBSITE</span><strong>{current ? platforms[current].label : 'Unsupported website'}</strong><span className="site-detail">{current ? (!prefs[`pc_${current}_enabled`] ? 'Protection paused' : prefs[platforms[current].allKey] || prefs[platforms[current].insideAllKey] || platforms[current].options.some(({ key }) => prefs[key]) ? 'Blur categories enabled' : 'Choose categories to protect') : 'Choose a platform below to edit its preferences.'}</span></div>
-      {current && <Switch label="Current website protection" checked={prefs[`pc_${current}_enabled`]} disabled={disabled} onChange={value => save({ [`pc_${current}_enabled`]: value }, current)} />}
-    </section>
     <nav className="platform-picker" aria-label="Privacy platforms">
       {Object.entries(platforms).map(([key, { label }]) => <button className="icon-button" type="button" key={key} aria-label={label === 'Microsoft Teams' ? 'Teams' : label} title={label} aria-pressed={platform === key} onClick={() => { setPlatform(key); setFeedback(''); }} disabled={busy}><img src={platformIcons[key]} alt="" width="20" height="20" /></button>)}
     </nav>
